@@ -1,0 +1,14 @@
+name: BDA_holiday
+channels:
+  - pytorch
+  - conda-forge
+dependencies:
+  - pandas
+  - torchvision  # will install tensorboard as well
+  - pytorch
+  - tensorboard
+  - scikit-learn
+  - nbformat
+  - ipykernel
+  - pyarrow
+  - plotly
