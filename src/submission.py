@@ -6,13 +6,11 @@ from typing import Callable
 from functools import partial
 from src.utils import init_weights_normal, flatten_weather_batch_transform
 
-# ------------------------------
-# Training configuration
-# ------------------------------
+
 def get_train_config() -> dict:
     """Returns a dictionary with all variable training config parameters."""
     n_orig_features = 15
-    n_derived = 3  # Spot_roll_24, Spot_roll_168, solar_util
+    n_derived = 3  
     n_time_feats = 7
     n_hist_features = n_orig_features + n_derived + n_time_feats  # 25
 
@@ -52,9 +50,7 @@ def get_train_config() -> dict:
         "epochs": 50,
     }
 
-# ------------------------------
-# Time features
-# ------------------------------
+
 def get_time_features(datetime_series: pd.Series, valid_cutoff_datetime: str, dtype: type=np.float32) -> tuple[np.ndarray, np.ndarray]:
     """Computes time embeddings for input timestamps."""
     ds = pd.to_datetime(datetime_series)
@@ -73,18 +69,13 @@ def get_time_features(datetime_series: pd.Series, valid_cutoff_datetime: str, dt
     time_feats = np.stack([hour_sin, hour_cos, dow_sin, dow_cos, month_sin, month_cos, weekend], axis=1).astype(dtype)
     return time_feats, None
 
-# ------------------------------
-# Batch transformation
-# ------------------------------
+
 def get_my_batch_tsfm() -> Callable:
     """Returns batch transformation function."""
     return partial(flatten_weather_batch_transform, num_targets=1)
 
-# ------------------------------
-# Derived features
-# ------------------------------
+
 def add_my_derived_features_(df: pd.DataFrame) -> None:
-    """Compute derived features in-place."""
     if "Spot" in df.columns:
         df.loc[:, "Spot_roll_24"] = df["Spot"].rolling(window=24, min_periods=1).mean()
         df.loc[:, "Spot_roll_168"] = df["Spot"].rolling(window=168, min_periods=1).mean()
@@ -93,7 +84,6 @@ def add_my_derived_features_(df: pd.DataFrame) -> None:
     return None
 
 def update_my_data_cols(feature_cols: list, target_cols: list) -> tuple[list, list]:
-    """Add derived features to feature list before preprocessing."""
     derived = ["Spot_roll_24", "Spot_roll_168", "solar_util"]
     for col in derived:
         if col not in feature_cols:
@@ -147,16 +137,11 @@ class EnergyLSTMNet(nn.Module):
         out = self.reg_layer(last_out)
         return out
 
-# ------------------------------
-# Model getter
-# ------------------------------
+
 def get_my_model(net_kwargs: dict, rng: torch.Generator) -> nn.Module:
     """Returns an instance of the model."""
     return EnergyLSTMNet(**net_kwargs, rng=rng)
 
-# ------------------------------
-# Model name / group info
-# ------------------------------
 def get_my_model_name() -> str:
     return "my_model_lstm_v1"
 
