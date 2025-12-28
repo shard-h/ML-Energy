@@ -34,7 +34,7 @@ def get_train_config() -> dict:
         "batch_size": 32,
         "net_params": {
             "input_dim": input_dim,
-            "hidden_dim": 256,
+            "hidden_dim": 128,
             "output_dim": output_dim,
             "dropout_p": 0.3,
             "n_hist_features": n_hist_features,
@@ -140,7 +140,7 @@ def get_my_model(net_kwargs: dict, rng: torch.Generator) -> nn.Module:
     return EnergyLSTMNet(**net_kwargs, rng=rng)
 
 def get_my_model_name() -> str:
-    return "my_model_lstm_v1"
+    return "my_model_lstm_v2"
 
 def get_group_number() -> str:
     _group_number = 125
