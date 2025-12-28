@@ -99,11 +99,9 @@ class EnergyLSTMNet(nn.Module):
         self.forecast_history = forecast_history
         self.n_weather_future = n_weather_future
         self.forecast_horizon = forecast_horizon
-        self.num_layers = num_layers
-        self.bidirectional = bidirectional
         self.hidden_dim = hidden_dim
 
-        # LSTM input: (batch, seq_len, features)
+        # LSTM verarbeitet nur die Historie
         self.lstm = nn.LSTM(
             input_size=n_hist_features,
             hidden_size=hidden_dim,
@@ -112,26 +110,44 @@ class EnergyLSTMNet(nn.Module):
             dropout=dropout_p if num_layers > 1 else 0.0,
             bidirectional=bidirectional
         )
-
-        multiplier = 2 if bidirectional else 1
-        self.reg_layer = nn.Linear(multiplier * hidden_dim, output_dim)
+        
+        # WICHTIG: Dimension des Regressors anpassen
+        # Input für Linear Layer ist jetzt: LSTM-Output + Zukunfts-Wetter
+        # LSTM Output size: hidden_dim (mal 2 wenn bidirectional)
+        # Future Weather size: n_weather_future * forecast_horizon
+        lstm_out_dim = (2 if bidirectional else 1) * hidden_dim
+        future_weather_flat_dim = n_weather_future * forecast_horizon
+        
+        self.reg_layer = nn.Linear(lstm_out_dim + future_weather_flat_dim, output_dim)
 
         if rng is not None:
             self.apply(partial(init_weights_normal, generator=rng))
 
     def forward(self, x):
-        # x: (batch, total_input_dim)
+        # x shape: (batch, total_input_dim)
         batch_size = x.size(0)
 
-        # Split historical features and future weather
+        # 1. Split: Historie vs. Zukunft
+        # Wir müssen genau berechnen, wo der Schnitt ist
         hist_feats_len = self.n_hist_features * self.forecast_history
-        hist_feats = x[:, :hist_feats_len]
-        hist_feats = hist_feats.view(batch_size, self.forecast_history, self.n_hist_features)
+        
+        # Historische Daten für LSTM
+        hist_feats_flat = x[:, :hist_feats_len]
+        hist_feats = hist_feats_flat.view(batch_size, self.forecast_history, self.n_hist_features)
 
-        lstm_out, _ = self.lstm(hist_feats)  # (batch, seq_len, hidden_dim)
-        # Take last timestep
+        # Zukünftige Wetterdaten (die vorher ignoriert wurden!)
+        future_weather_flat = x[:, hist_feats_len:] 
+        
+        # 2. LSTM Pass
+        lstm_out, _ = self.lstm(hist_feats)
+        # Wir nehmen den letzten Hidden State
         last_out = lstm_out[:, -1, :]
-        out = self.reg_layer(last_out)
+        
+        # 3. Concatenate: LSTM Wissen + Zukunfts-Wetter Wissen
+        combined_input = torch.cat([last_out, future_weather_flat], dim=1)
+        
+        # 4. Final Prediction
+        out = self.reg_layer(combined_input)
         return out
 
 
