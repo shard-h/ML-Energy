@@ -8,7 +8,6 @@ from src.utils import init_weights_normal, flatten_weather_batch_transform
 
 
 def get_train_config() -> dict:
-    """Returns a dictionary with all variable training config parameters."""
     n_orig_features = 15
     n_derived = 3  
     n_time_feats = 7
@@ -52,7 +51,6 @@ def get_train_config() -> dict:
 
 
 def get_time_features(datetime_series: pd.Series, valid_cutoff_datetime: str, dtype: type=np.float32) -> tuple[np.ndarray, np.ndarray]:
-    """Computes time embeddings for input timestamps."""
     ds = pd.to_datetime(datetime_series)
     hour = ds.dt.hour.to_numpy().astype(np.float32)
     days = ds.dt.dayofweek.to_numpy().astype(np.float32)
@@ -71,7 +69,6 @@ def get_time_features(datetime_series: pd.Series, valid_cutoff_datetime: str, dt
 
 
 def get_my_batch_tsfm() -> Callable:
-    """Returns batch transformation function."""
     return partial(flatten_weather_batch_transform, num_targets=1)
 
 
