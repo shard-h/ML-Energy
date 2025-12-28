@@ -156,7 +156,7 @@ def get_my_model(net_kwargs: dict, rng: torch.Generator) -> nn.Module:
     return EnergyLSTMNet(**net_kwargs, rng=rng)
 
 def get_my_model_name() -> str:
-    return "my_model_lstm_v2"
+    return "my_model_lstm_v2_weather_fix"
 
 def get_group_number() -> str:
     _group_number = 125
