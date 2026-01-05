@@ -8,10 +8,10 @@ from src.utils import init_weights_normal, flatten_weather_batch_transform
 
 
 def get_train_config() -> dict:
-    n_orig_features = 15
+    n_orig_features = 36
     n_derived = 3  
     n_time_feats = 7
-    n_hist_features = n_orig_features + n_derived + n_time_feats  # 25
+    n_hist_features = n_orig_features + n_derived + n_time_feats
 
     forecast_history = 192
     forecast_horizon = 48
@@ -23,10 +23,43 @@ def get_train_config() -> dict:
     return {
         "targets": ["Spot", "wind_mean", "solar_mean"],
         "features": [
-            "pumped hydro conso", "pumped hydro production",
-            "cross-border trade", "brown coal", "black coal", "natural gas",
-            "onshore wind", "solar", "solar capacity", "onshore wind capacity",
-            "Spot", "conso", "Spot coal", "Spot Gas EEX THE Day Ahead", "CO2 price GER"
+            'Spot',
+            'pumped hydro conso',
+            'cross-border trade',
+            'nuclear',
+            'run-of-the-river production',
+            'biomass',
+            'brown coal',
+            'black coal',
+            'oil',
+            'natural gas',
+            'geothermal',
+            'stored hydro production',
+            'pumped hydro production',
+            'other',
+            'waste incineration',
+            'offshore wind',
+            'onshore wind',
+            'solar',
+            'conso',
+            'coal gas',
+            'CO2 price GER',
+            'CO2 price EU',
+            'biomass capacity',
+            'offshore wind capacity',
+            'onshore wind capacity',
+            'solar capacity',
+            'battery storage (nominal power)',
+            'pumped hydro capacity',
+            'brown coal capacity',
+            'black coal capacity',
+            'oil capacity',
+            'natural gas capacity',
+            'other (non-renewable) capacity',
+            'Spot Gas EEX THE Day Ahead',
+            'Spot coal',
+            'wind_mean',
+            'solar_mean',
         ],
         "stride": 1,
         "forecast_history": forecast_history,
@@ -76,15 +109,37 @@ def add_my_derived_features_(df: pd.DataFrame) -> None:
     if "Spot" in df.columns:
         df.loc[:, "Spot_roll_24"] = df["Spot"].rolling(window=24, min_periods=1).mean()
         df.loc[:, "Spot_roll_168"] = df["Spot"].rolling(window=168, min_periods=1).mean()
+        
     if "solar" in df.columns and "solar capacity" in df.columns:
         df.loc[:, "solar_util"] = df["solar"] / (df["solar capacity"] + 1e-6)
+
+    date_series = None
+    if "Date" in df.columns:
+        date_series = df["Date"]
+    elif isinstance(df.index, pd.DatetimeIndex):
+        date_series = pd.Series(df.index)
+    
+    if date_series is not None:
+        time_feats_array, _ = get_time_features(date_series, valid_cutoff_datetime=None, dtype=np.float32)
+        
+        tf_names = ["hour_sin", "hour_cos", "dow_sin", "dow_cos", "month_sin", "month_cos", "weekend"]
+        
+        if time_feats_array.shape[1] == len(tf_names):
+            for i, name in enumerate(tf_names):
+                df.loc[:, name] = time_feats_array[:, i]
+                
     return None
 
 def update_my_data_cols(feature_cols: list, target_cols: list) -> tuple[list, list]:
     derived = ["Spot_roll_24", "Spot_roll_168", "solar_util"]
-    for col in derived:
+    time_feats = ["hour_sin", "hour_cos", "dow_sin", "dow_cos", "month_sin", "month_cos", "weekend"]
+
+    candidates = derived + time_feats
+    
+    for col in candidates:
         if col not in feature_cols:
             feature_cols.append(col)
+
     return feature_cols, target_cols
 
 # ------------------------------
@@ -156,7 +211,7 @@ def get_my_model(net_kwargs: dict, rng: torch.Generator) -> nn.Module:
     return EnergyLSTMNet(**net_kwargs, rng=rng)
 
 def get_my_model_name() -> str:
-    return "my_model_lstm_v2_weather_fix"
+    return "my_model_lstm_v3"
 
 def get_group_number() -> str:
     _group_number = 125
